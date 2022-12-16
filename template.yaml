@@ -53,7 +53,7 @@ Resources:
             Resource:
               - "*" 
   PostOrders:
-    Type: AWS::Serverless::Function
+    Type: AWS::Serverless::Function 
     Properties:
       CodeUri: src/order-api/functions/post-orders/
       Handler: app.postOrders
@@ -66,22 +66,21 @@ Resources:
             BatchSize: 10
       Environment:
         Variables:
-          ORDER_TABLE: !Ref OrderTable
+          STATE_MACHINE_ARN: !Ref OrderManagementSFN
       Policies:
         Statement:
           - Effect: Allow
             Action:
-              - dynamodb:PutItem
-            Resource:
-              - !Sub
-                - "arn:aws:dynamodb:*:*:table/${Table}"
-                - { Table: !Ref OrderTable }
-          - Effect: Allow
-            Action:
               - logs:*
             Resource:
-              - "*"
- 
+              - "*"    
+          - Effect: Allow
+            Action:
+              - states:StartExecution
+            Resource:
+              - !Sub 
+                - '${StateMachine}'
+                - { StateMachine: !Ref OrderManagementSFN }
   GetSingleOrder:
     Type: AWS::Serverless::Function 
     Properties:
@@ -151,15 +150,6 @@ Resources:
               - logs:*
             Resource:
               - "*"    
-  OrderQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      RedrivePolicy:
-        deadLetterTargetArn: !GetAtt OrderDLQueue.Arn
-        maxReceiveCount: 5
-
-  OrderDLQueue:
-    Type: AWS::SQS::Queue
 
   OrderApi:
     Type: AWS::Serverless::Api
@@ -175,6 +165,16 @@ Resources:
           Name: 'AWS::Include'
           Parameters:
             Location: './api.yaml'
+
+  OrderQueue:
+    Type: AWS::SQS::Queue
+    Properties: 
+      RedrivePolicy: 
+        deadLetterTargetArn: !GetAtt OrderDLQueue.Arn
+        maxReceiveCount: 5
+
+  OrderDLQueue:
+    Type: AWS::SQS::Queue
 
   ApiGwExecutionRole: 
     Type: "AWS::IAM::Role"
@@ -212,6 +212,72 @@ Resources:
       Roles: 
         - Ref: "ApiGwExecutionRole"
 
+  ProcessPaymentFumction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/order-management/functions/process-payment/
+      Handler: app.processPayment
+      Runtime: nodejs14.x
+
+  SendOrderToRestaurantFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/order-management/functions/sendordertorestaurant/
+      Handler: app.sendOrderToRestaurant
+      Runtime: nodejs14.x
+
+  ManageStateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/order-management/functions/managestate/
+      Handler: app.manageState
+      Runtime: nodejs14.x
+      Environment:
+        Variables:
+          ORDER_TABLE: !Ref OrderTable
+          SNS_TOPIC_ARN: !Ref OrderTopic
+      Policies:
+        Statement:
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:Query 
+              - dynamodb:Scan
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+            Resource:
+              - !Sub 
+                - 'arn:aws:dynamodb:*:*:table/${Table}'
+                - { Table: !Ref OrderTable }
+          - Effect: Allow
+            Action:
+              - logs:*
+            Resource:
+              - "*"   
+  
+  OrderTopic:
+    Type: AWS::SNS::Topic
+    Properties: 
+      Subscription: 
+        - Endpoint: "naseev.adhikari@outlook.com"
+          Protocol: "email"
+      TopicName: "order-topic"
+
+  OrderManagementSFN:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      DefinitionUri: src/order-management/statemachine/process-order.asl.json
+      DefinitionSubstitutions:
+        ManageStateArn: !GetAtt ManageStateFunction.Arn
+        ProcessPaymentArn: !GetAtt ProcessPaymentFumction.Arn
+        SendOrderToRestaurantArn: !GetAtt SendOrderToRestaurantFunction.Arn
+      Policies: 
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ManageStateFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref ProcessPaymentFumction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref SendOrderToRestaurantFunction
 
 Outputs:
   DynamoDBTableName:
@@ -235,11 +301,9 @@ Outputs:
   DeleteOrder:
     Description: "DeleteOrder Lambda Function ARN"
     Value: !GetAtt DeleteOrder.Arn
-  OrderQueueUrl:
+  OrderQueueUrl: 
     Description: "URL of order queue"
-    Value: !Ref OrderQueue
-  OrderDLQueueUrl:
+    Value: !Ref OrderDLQueue
+  OrderDLQueueUrl: 
     Description: "URL of order dead-letter queue"
     Value: !Ref OrderDLQueue
-
-
