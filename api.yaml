@@ -5,14 +5,14 @@ info:
   title: "order-app"
 basePath: "/Dev"
 schemes:
-- "https"
+  - "https"
 paths:
   /orders:
     get:
       responses: {}
       x-amazon-apigateway-integration:
-        credentials: 
-          Fn::GetAtt: [ ApiGwExecutionRole, Arn ]
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
         type: "aws_proxy"
         httpMethod: "POST"
         uri:
@@ -20,16 +20,16 @@ paths:
         passthroughBehavior: "when_no_match"
     post:
       consumes:
-      - "application/json"
+        - "application/json"
       produces:
-      - "application/json"
+        - "application/json"
       responses:
         "200":
           description: "200 response"
       x-amazon-apigateway-integration:
         type: "aws"
-        credentials: 
-          Fn::GetAtt: [ ApiGwExecutionRole, Arn ]
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
         httpMethod: "POST"
         uri:
           Fn::Sub: arn:aws:apigateway:${AWS::Region}:sqs:path/${AWS::AccountId}/${OrderQueue.QueueName}
@@ -39,14 +39,14 @@ paths:
         requestParameters:
           integration.request.header.Content-Type: "'application/x-www-form-urlencoded'"
         requestTemplates:
-          application/json: "Action=SendMessage&MessageBody={\"data\":$input.json('$')}"
+          application/json: 'Action=SendMessage&MessageBody={"data":$input.json(''$''),"cognito_userid":"$context.authorizer.claims[''cognito:username'']"}'
         passthroughBehavior: "when_no_match"
   /orders/{orderId+}:
     get:
       responses: {}
       x-amazon-apigateway-integration:
-        credentials: 
-          Fn::GetAtt: [ ApiGwExecutionRole, Arn ]
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
         type: "aws_proxy"
         httpMethod: "POST"
         uri:
@@ -54,16 +54,16 @@ paths:
         passthroughBehavior: "when_no_match"
     put:
       produces:
-      - "application/json"
+        - "application/json"
       parameters:
-      - name: "orderId"
-        in: "path"
-        required: true
-        type: "string"
+        - name: "orderId"
+          in: "path"
+          required: true
+          type: "string"
       responses: {}
       x-amazon-apigateway-integration:
-        credentials: 
-          Fn::GetAtt: [ ApiGwExecutionRole, Arn ]
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
         httpMethod: "POST"
         uri:
           Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${UpdateOrder.Arn}/invocations
@@ -75,10 +75,13 @@ paths:
     delete:
       responses: {}
       x-amazon-apigateway-integration:
-        credentials: 
-          Fn::GetAtt: [ ApiGwExecutionRole, Arn ]
+        credentials:
+          Fn::GetAtt: [ApiGwExecutionRole, Arn]
         type: "aws_proxy"
         httpMethod: "POST"
         uri:
           Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${DeleteOrder.Arn}/invocations
         passthroughBehavior: "when_no_match"
+      security:
+        - MyCognitoAuthorizer:
+            - "order-api/delete_order"
