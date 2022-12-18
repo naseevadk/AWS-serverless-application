@@ -31,3 +31,41 @@ cd ~/environment/$ORDER_APP
 cat template.yaml
 
 As you can see template.yaml file deploys a Lambda function, and it also creates event sourcing to Amazon API Gateway (while doing that it creates the API Gateway too. Yes, I know!!! It is magical ;) )
+
+Execute the following commands to build the SAM project.
+
+cd ~/environment/$ORDER_APP
+sam build
+
+Once the SAM project is built, you can deploy the infrastructure to your AWS account.
+
+1
+sam deploy --stack-name $ORDER_APP --region $AWS_REGION --guided
+
+Please enter following inputs when prompted after running the above command. For default one please Press Enter key.
+
+Stack Name [order-app]: Press Enter key
+AWS Region []: Press Enter key
+Confirm changes before deploy [y/N]: y
+Allow SAM CLI IAM role creation [Y/n]: Y
+HelloWorldFunction may not have authorization defined, Is this okay? [y/N]: y
+Save arguments to configuration file [Y/n]: Y
+SAM configuration file [samconfig.toml]: Press Enter key
+SAM configuration environment [default]: Press Enter key
+Previewing CloudFormation changeset before deployment:
+
+Deploy this changeset? [y/N]: y
+
+Test the deployed endpoint
+
+You can test if your hello world app is reachable by making a request to the HelloWorldApi URL found in the Deployment Output above.
+
+Get the API Gateway Endpoint and execute the command to call the API Gateway endpoint.
+
+API_ENDPOINT=`aws cloudformation describe-stacks --stack-name $ORDER_APP --region $AWS_REGION | jq -r '.Stacks[0].Outputs[] | select( .OutputValue | contains("execute-api"))' | jq -r ".OutputValue"`
+
+curl -s $API_ENDPOINT | python3 -m json.tool
+
+Output:
+
+{"message":"hello world"}
