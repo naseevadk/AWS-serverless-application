@@ -20,21 +20,6 @@ sam init \
     --dependency-manager npm \
     --app-template hello-world
 
-Click here to expand SAM Output:
-Here is the SAM project structure for order-app:
-
- ├── order-app
- │   ├── events
- │   │   └── event.json
- │   ├── hello-world
- │   │   ├── app.js
- │   │   ├── package.json
- │   │   └── tests
- │   │       └── unit
- │   │           └── test-handler.js
- │   ├── README.md
- │   └── template.yaml
- └── README.md
 
 Project Components
 
@@ -42,10 +27,7 @@ hello-world folder contains Lambda source code and tests written in Nodejs. The 
 template.yaml file is one of the essential component of AWS SAM. You define each and every infrastructure components that you wish to deploy into your AWS environment.
 Let's view the template.yaml file:
 
-1
-2
 cd ~/environment/$ORDER_APP
 cat template.yaml
 
-Click here to expand Template.yaml:
 As you can see template.yaml file deploys a Lambda function, and it also creates event sourcing to Amazon API Gateway (while doing that it creates the API Gateway too. Yes, I know!!! It is magical ;) )
