@@ -1,127 +1,111 @@
 # ORDER_APP
 
-This project contains source code and supporting files for a serverless application that you can deploy with the SAM CLI. It includes the following files and folders.
+In this lab, we will be building an Order API by using the AWS Serverless Stack (ApiGateway - Lambda - DynamoDB) and the synchronous request-response pattern with AWS SAM. Users will create an Order, GET the list of Orders, and GET/UPDATE/DELETE a specific Order.
 
-- hello-world - Code for the application's Lambda function.
-- events - Invocation events that you can use to invoke the function.
-- hello-world/tests - Unit tests for the application code. 
-- template.yaml - A template that defines the application's AWS resources.
+In this lab, our API will have following resources and HTTP methods.
 
-The application uses several AWS resources, including Lambda functions and an API Gateway API. These resources are defined in the `template.yaml` file in this project. You can update the template to add AWS resources through the same deployment process that updates your application code.
+/orders: This resources allows users to list their orders and create new ones
+ - GET: List orders - API Gateway -> Lambda -> DynamoDB
+ - POST: Create New Order - API Gateway -> Lambda -> DynamoDB
 
-If you prefer to use an integrated development environment (IDE) to build and test your application, you can use the AWS Toolkit.  
-The AWS Toolkit is an open source plug-in for popular IDEs that uses the SAM CLI to build and deploy serverless applications on AWS. The AWS Toolkit also adds a simplified step-through debugging experience for Lambda function code. See the following links to get started.
+/orders/{id}: Users can call this resource to show their order details
+ - GET: Show order details - API Gateway -> Lambda -> DynamoDB
+ - PUT: Update order status - API Gateway -> Lambda -> DynamoDB
+ - DELETE: Cancel order - API Gateway -> Lambda -> DynamoDB
 
-* [CLion](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [GoLand](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [IntelliJ](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [WebStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [Rider](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PhpStorm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [PyCharm](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [RubyMine](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [DataGrip](https://docs.aws.amazon.com/toolkit-for-jetbrains/latest/userguide/welcome.html)
-* [VS Code](https://docs.aws.amazon.com/toolkit-for-vscode/latest/userguide/welcome.html)
-* [Visual Studio](https://docs.aws.amazon.com/toolkit-for-visual-studio/latest/user-guide/welcome.html)
+Populating Order Table
+Let's populate order-table with sample data. In order to do that, enter the following command in your terminal.
 
-## Deploy the sample application
+cd ~/environment/$ORDER_APP/populate-db
+node seed-orderdb.js
 
-The Serverless Application Model Command Line Interface (SAM CLI) is an extension of the AWS CLI that adds functionality for building and testing Lambda applications. It uses Docker to run your functions in an Amazon Linux environment that matches Lambda. It can also emulate your application's build environment and API.
+Build and Deploy the SAM project:
 
-To use the SAM CLI, you need the following tools.
-
-* SAM CLI - [Install the SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html)
-* Node.js - [Install Node.js 10](https://nodejs.org/en/), including the NPM package management tool.
-* Docker - [Install Docker community edition](https://hub.docker.com/search/?type=edition&offering=community)
-
-To build and deploy your application for the first time, run the following in your shell:
-
-```bash
+cd ~/environment/$ORDER_APP
 sam build
-sam deploy --guided
-```
+sam deploy --no-confirm-changeset
 
-The first command will build the source of your application. The second command will package and deploy your application to AWS, with a series of prompts:
 
-* **Stack Name**: The name of the stack to deploy to CloudFormation. This should be unique to your account and region, and a good starting point would be something matching your project name.
-* **AWS Region**: The AWS region you want to deploy your app to.
-* **Confirm changes before deploy**: If set to yes, any change sets will be shown to you before execution for manual review. If set to no, the AWS SAM CLI will automatically deploy application changes.
-* **Allow SAM CLI IAM role creation**: Many AWS SAM templates, including this example, create AWS IAM roles required for the AWS Lambda function(s) included to access AWS services. By default, these are scoped down to minimum required permissions. To deploy an AWS CloudFormation stack which creates or modifies IAM roles, the `CAPABILITY_IAM` value for `capabilities` must be provided. If permission isn't provided through this prompt, to deploy this example you must explicitly pass `--capabilities CAPABILITY_IAM` to the `sam deploy` command.
-* **Save arguments to samconfig.toml**: If set to yes, your choices will be saved to a configuration file inside the project, so that in the future you can just re-run `sam deploy` without parameters to deploy changes to your application.
+After deploying, Let's receive the API_ENDPOINT from SAM output, and set it as environment variable:
 
-You can find your API Gateway Endpoint URL in the output values displayed after deployment.
+API_ENDPOINT=`aws cloudformation describe-stacks --stack-name $ORDER_APP --region $AWS_REGION | jq -r '.Stacks[0].Outputs[] | select( .OutputValue | contains("execute-api"))' | jq -r ".OutputValue"`
 
-## Use the SAM CLI to build and test locally
+echo "export API_ENDPOINT=${API_ENDPOINT::-1}" | tee -a ~/.bash_profile # It will be saved to env. variable to use in next sections of labs
 
-Build your application with the `sam build` command.
+source ~/.bash_profile
 
-```bash
-ORDER_APP$ sam build
-```
+Curl:
 
-The SAM CLI installs dependencies defined in `hello-world/package.json`, creates a deployment package, and saves it in the `.aws-sam/build` folder.
+curl -s $API_ENDPOINT | python3 -m json.tool
 
-Test a single function by invoking it directly with a test event. An event is a JSON document that represents the input that the function receives from the event source. Test events are included in the `events` folder in this project.
+From the above curl command you will get all the orders from our custom Order API Gateway calling our GetOrders Lambda function.
 
-Run functions locally and invoke them with the `sam local invoke` command.
 
-```bash
-ORDER_APP$ sam local invoke HelloWorldFunction --event events/event.json
-```
+Let's create an Order now! We will be sending a JSON Payload to our API Gateway.
 
-The SAM CLI can also emulate your application's API. Use the `sam local start-api` to run the API locally on port 3000.
+Sample Payload:
 
-```bash
-ORDER_APP$ sam local start-api
-ORDER_APP$ curl http://localhost:3000/
-```
+{
+    "quantity": 2,
+    "name": "Burger",
+    "restaurantId": "Restaurant 2"
+}
+Curl:
 
-The SAM CLI reads the application template to determine the API's routes and the functions that they invoke. The `Events` property on each function's definition includes the route and method for each path.
+curl -s --header "Content-Type: application/json" \
+  --request POST \
+  --data '{"name":"Burger","restaurantId":"Restaurant 2","quantity":2 }' \
+  $API_ENDPOINT | python3 -m json.tool 
 
-```yaml
-      Events:
-        HelloWorld:
-          Type: Api
-          Properties:
-            Path: /hello
-            Method: get
-```
+Output:
 
-## Add a resource to your application
-The application template uses AWS Serverless Application Model (AWS SAM) to define application resources. AWS SAM is an extension of AWS CloudFormation with a simpler syntax for configuring common serverless application resources such as functions, triggers, and APIs. For resources not included in [the SAM specification](https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md), you can use standard [AWS CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-template-resource-type-ref.html) resource types.
+{
+    "user_id": "static_user",
+    "id": "8836f1ff-c20b-4377-918f-1955ba2c27b2",
+    "name": "Burger",
+    "restaurantId": "Restaurant 2",
+    "quantity": 2,
+    "createdAt": "2021-09-25T16:15:27",
+    "orderStatus": "PENDING"
+    
+}
 
-## Fetch, tail, and filter Lambda function logs
 
-To simplify troubleshooting, SAM CLI has a command called `sam logs`. `sam logs` lets you fetch logs generated by your deployed Lambda function from the command line. In addition to printing the logs on the terminal, this command has several nifty features to help you quickly find the bug.
+Replace the OrderID into <YOUR-ORDER-ID> field:
 
-`NOTE`: This command works for all AWS Lambda functions; not just the ones you deploy using SAM.
+# Grab one of the Order ID after fetching all orders. 
+export ORDERID=<YOUR-ORDER-ID> 
 
-```bash
-ORDER_APP$ sam logs -n HelloWorldFunction --stack-name ORDER_APP --tail
-```
+curl -s $API_ENDPOINT/$ORDERID | python3 -m json.tool
+      
 
-You can find more information and examples about filtering Lambda function logs in the [SAM CLI Documentation](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-logging.html).
+Let's update an Order now! We will now update the Burger order's quantity from 2 to 3. You have to put order id into path at the end of url. To do that, you can fetch orders first, then grab the order Id for single order.(Check the curl command in the Fetch Orders Testing Section).
 
-## Unit tests
+Replace the OrderID into <YOUR-ORDER-ID> field:
 
-Tests are defined in the `hello-world/tests` folder in this project. Use NPM to install the [Mocha test framework](https://mochajs.org/) and run unit tests.
+export ORDERID=<YOUR-ORDER-ID> # Check Fetch Orders Testing Section, and grab one of the Order ID after fetching all orders. 
 
-```bash
-ORDER_APP$ cd hello-world
-hello-world$ npm install
-hello-world$ npm run test
-```
+Curl:
 
-## Cleanup
+curl -s --header "Content-Type: application/json" \
+  --request PUT \
+  --data '{"name":"Sushi","restaurantId":"Fancy Restaurant","quantity":12 }' \
+  $API_ENDPOINT/$ORDERID | python3 -m json.tool 
 
-To delete the sample application that you created, use the AWS CLI. Assuming you used your project name for the stack name, you can run the following:
+Now, you updated order with new values.
+      
+      
+      
+Let's delete Delete from previous section to delete this Order. You have to put order id into path at the end of url. To do that, you can fetch orders first, then grab the order Id for single order.(Check the curl command in the Fetch Orders Testing Section)
 
-```bash
-aws cloudformation delete-stack --stack-name ORDER_APP
-```
+Replace the OrderID into <YOUR-ORDER-ID> field:
 
-## Resources
+export ORDERID=<YOUR-ORDER-ID> # Check Fetch Orders Testing Section, and grab one of the Order ID after fetching all orders. 
 
-See the [AWS SAM developer guide](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/what-is-sam.html) for an introduction to SAM specification, the SAM CLI, and serverless application concepts.
+Curl:
 
-Next, you can use AWS Serverless Application Repository to deploy ready to use Apps that go beyond hello world samples and learn how authors developed their applications: [AWS Serverless Application Repository main page](https://aws.amazon.com/serverless/serverlessrepo/)
+curl -I -s --request DELETE $API_ENDPOINT/$ORDERID
+
+Output should return HTTP 204 method.
+
+HTTP/2 204
