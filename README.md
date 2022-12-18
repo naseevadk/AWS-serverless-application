@@ -23,18 +23,18 @@ sam init \
 Click here to expand SAM Output:
 Here is the SAM project structure for order-app:
 
-├── order-app
-│   ├── events
-│   │   └── event.json
-│   ├── hello-world
-│   │   ├── app.js
-│   │   ├── package.json
-│   │   └── tests
-│   │       └── unit
-│   │           └── test-handler.js
-│   ├── README.md
-│   └── template.yaml
-└── README.md
+ ├── order-app
+ │   ├── events
+ │   │   └── event.json
+ │   ├── hello-world
+ │   │   ├── app.js
+ │   │   ├── package.json
+ │   │   └── tests
+ │   │       └── unit
+ │   │           └── test-handler.js
+ │   ├── README.md
+ │   └── template.yaml
+ └── README.md
 
 Project Components
 
